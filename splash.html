@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fred's Bakery – Welcome</title>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="FREDS_ICON1.png" class="topbar-logo" onerror="this.style.display='none'">
+    <span class="topbar-text">IS FREDS</span>
+    <img src="FREDS_ICON1.png" class="topbar-logo" onerror="this.style.display='none'">
+    <span class="topbar-text">IS GOOD</span>
+  </div>
+</div>
+
+<div class="split">
+  <div class="split-left"><img src="logo-big.png" style="width:100%;height:100%;object-fit:cover;opacity:0.3;"
+       onerror="this.outerHTML='<div class=\'watermark\'>🥐</div>'"></div>
+  <div class="split-right">
+    <div class="splash-brand">FRED'S<span class="splash-sub-title">BAKERY</span></div>
+    <div class="splash-sub">Management System · Secure Entryway</div>
+    <div class="loader-wrap">
+      <div class="loader-bar"><div class="loader-fill" id="splash-loader"></div></div>
+      <div class="loader-text">Initializing secure session…</div>
+    </div>
+    <button class="btn-enter" onclick="window.location.href='login.html'">Enter System →</button>
+  </div>
+</div>
+
+<script>
+const JWT_SECRET = 'f7K#mP2$xQnL9vRt4wYc8jBe6hZd3sAu'
+function getUsers() { return JSON.parse(localStorage.getItem('bakery_users') || '[]') }
+function saveUsers(u) { localStorage.setItem('bakery_users', JSON.stringify(u)) }
+function findUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null }
+
+function b64url(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+}
+function makeJWT(payload) {
+  const header = b64url(JSON.stringify({ alg:'HS256', typ:'JWT' }))
+  const body   = b64url(JSON.stringify({ ...payload, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+(8*60*60) }))
+  const sig    = b64url(JWT_SECRET+'.'+body)
+  return `${header}.${body}.${sig}`
+}
+function decodeJWT(token) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    return JSON.parse(decodeURIComponent(escape(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')))))
+  } catch { return null }
+}
+function isTokenValid(token) { const p = decodeJWT(token); return p && p.exp > Math.floor(Date.now()/1000) }
+function showMsg(el, msg) { el.textContent = msg; el.style.display = 'block' }
+
+window.addEventListener('DOMContentLoaded', () => {
+  setTimeout(() => { document.getElementById('splash-loader').style.width = '100%' }, 100)
+  const token = localStorage.getItem('bakery_jwt')
+  if (token && isTokenValid(token)) {
+    setTimeout(() => { window.location.href = 'dashboard.html' }, 400)
+    return
+  }
+  setTimeout(() => { window.location.href = 'login.html' }, 3000)
+})
+</script>
+</body>
+</html>

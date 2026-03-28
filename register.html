@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fred's Bakery – Register</title>
+<link rel="stylesheet" href="shared.css">
+<script src="bcrypt.min.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="FREDS_ICON1.png" class="topbar-logo" onerror="this.style.display='none'">
+    <span class="topbar-text">IS FREDS</span>
+    <img src="FREDS_ICON1.png" class="topbar-logo" onerror="this.style.display='none'">
+    <span class="topbar-text">IS GOOD</span>
+  </div>
+</div>
+
+<div class="split">
+  <div class="split-left"><img src="logo-big.png" style="width:100%;height:100%;object-fit:cover;opacity:0.3;"
+       onerror="this.outerHTML='<div class=\'watermark\'>🥐</div>'"></div>
+  <div class="split-right">
+    <div class="page-title">Register</div>
+    <div class="form-hint">Create your staff account to continue</div>
+
+    <div class="error-box"   id="reg-error"></div>
+    <div class="success-box" id="reg-success"></div>
+
+    <div class="form-row">
+      <input type="text"  id="reg-firstname" placeholder="First Name">
+      <input type="text"  id="reg-lastname"  placeholder="Last Name">
+    </div>
+    <div class="form-group">
+      <input type="email" id="reg-email" placeholder="Email Address">
+    </div>
+
+    <div class="role-label">Assign Role</div>
+    <div class="role-grid">
+      <div class="role-card active" id="role-manager" onclick="selectRole('manager')">
+        <div class="role-card-icon">👔</div>
+        <div class="role-card-label">Manager</div>
+      </div>
+      <div class="role-card" id="role-cashier" onclick="selectRole('cashier')">
+        <div class="role-card-icon">🧾</div>
+        <div class="role-card-label">Cashier</div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <input type="password" id="reg-password" placeholder="Password (min. 8 characters)">
+    </div>
+    <div class="form-group">
+      <input type="password" id="reg-confirm"  placeholder="Confirm Password">
+    </div>
+
+    <button class="btn-primary" id="reg-btn" onclick="handleRegister()">Register Account</button>
+
+    <div class="security-badge">
+      🛡️ Password hashed with <strong>&nbsp;bcrypt (10 salt rounds)&nbsp;</strong> before saving
+    </div>
+    <div class="form-footer">
+      Already have an account? <a href="login.html">Login here</a>
+    </div>
+  </div>
+</div>
+
+<script>
+const JWT_SECRET = 'f7K#mP2$xQnL9vRt4wYc8jBe6hZd3sAu'
+function getUsers() { return JSON.parse(localStorage.getItem('bakery_users') || '[]') }
+function saveUsers(u) { localStorage.setItem('bakery_users', JSON.stringify(u)) }
+function findUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null }
+
+function b64url(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+}
+function makeJWT(payload) {
+  const header = b64url(JSON.stringify({ alg:'HS256', typ:'JWT' }))
+  const body   = b64url(JSON.stringify({ ...payload, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+(8*60*60) }))
+  const sig    = b64url(JWT_SECRET+'.'+body)
+  return `${header}.${body}.${sig}`
+}
+function decodeJWT(token) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    return JSON.parse(decodeURIComponent(escape(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')))))
+  } catch { return null }
+}
+function isTokenValid(token) { const p = decodeJWT(token); return p && p.exp > Math.floor(Date.now()/1000) }
+function showMsg(el, msg) { el.textContent = msg; el.style.display = 'block' }
+
+let selectedRole = 'manager'
+
+function selectRole(role) {
+  selectedRole = role
+  document.getElementById('role-manager').classList.toggle('active', role === 'manager')
+  document.getElementById('role-cashier').classList.toggle('active', role === 'cashier')
+}
+
+function handleRegister() {
+  const firstName = document.getElementById('reg-firstname').value.trim()
+  const lastName  = document.getElementById('reg-lastname').value.trim()
+  const email     = document.getElementById('reg-email').value.trim()
+  const password  = document.getElementById('reg-password').value
+  const confirm   = document.getElementById('reg-confirm').value
+  const errBox    = document.getElementById('reg-error')
+  const sucBox    = document.getElementById('reg-success')
+  const btn       = document.getElementById('reg-btn')
+
+  errBox.style.display = 'none'
+  sucBox.style.display = 'none'
+
+  if (!firstName || !lastName || !email || !password) return showMsg(errBox, 'Please fill in all fields.')
+  if (password.length < 8) return showMsg(errBox, 'Password must be at least 8 characters.')
+  if (password !== confirm) return showMsg(errBox, 'Passwords do not match.')
+  if (findUserByEmail(email)) return showMsg(errBox, 'An account with that email already exists.')
+  if (typeof dcodeIO === 'undefined') return showMsg(errBox, 'bcrypt failed to load. Refresh the page.')
+
+  btn.disabled = true
+  btn.textContent = 'Hashing with bcrypt…'
+
+  try {
+    // 1️⃣ Generate salt explicitly then hash password
+    const salt = dcodeIO.bcrypt.genSaltSync(10)
+    const passwordHash = dcodeIO.bcrypt.hashSync(password, salt)
+
+    // 2️⃣ Save user to localStorage
+    const users = getUsers()
+    const newUser = {
+      id: crypto.randomUUID(),
+      fullName: `${firstName} ${lastName}`,
+      email, role: selectedRole,
+      passwordHash,
+      createdAt: new Date().toISOString(),
+    }
+    users.push(newUser)
+    saveUsers(users)
+
+    showMsg(sucBox, `✅ Account created for ${newUser.fullName}! Redirecting to login…`)
+    setTimeout(() => { window.location.href = 'login.html' }, 1600)
+  } catch (err) {
+    showMsg(errBox, 'Registration failed: ' + err.message)
+  } finally {
+    btn.disabled = false
+    btn.textContent = 'Register Account'
+  }
+}
+</script>
+</body>
+</html>

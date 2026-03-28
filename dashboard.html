@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fred's Bakery – Dashboard</title>
+<link rel="stylesheet" href="shared.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <img src="FREDS_ICON1.png" class="topbar-logo" onerror="this.style.display='none'">
+    <span class="topbar-text">IS FREDS</span>
+    <img src="FREDS_ICON1.png" class="topbar-logo" onerror="this.style.display='none'">
+    <span class="topbar-text">IS GOOD</span>
+  </div>
+  <button class="btn-logout" onclick="handleLogout()">
+    <span class="btn-logout-arrow">→</span>
+    <span class="btn-logout-label">Logout</span>
+  </button>
+</div>
+
+<div class="dash-body">
+  <div class="dash-watermark">🥐</div>
+
+  <div class="sidebar">
+    <div class="sidebar-item active"><span class="sidebar-icon">🏠</span><span class="sidebar-label">Dashboard</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">📦</span><span class="sidebar-label">Restock</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">🗃️</span><span class="sidebar-label">Inventory</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">💸</span><span class="sidebar-label">Expenses</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">📊</span><span class="sidebar-label">Analytics</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">👤</span><span class="sidebar-label">Staff</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">🏷️</span><span class="sidebar-label">Products</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">🌾</span><span class="sidebar-label">Ingredients</span></div>
+    <div class="sidebar-item"><span class="sidebar-icon">📒</span><span class="sidebar-label">Audit</span></div>
+  </div>
+
+  <div class="dash-main">
+    <div class="dash-welcome" id="dash-welcome">Welcome back!</div>
+    <div class="dash-date"    id="dash-date"></div>
+
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-label">Registered Users</div>
+        <div class="stat-value" id="stat-users">0</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Low Stock Items</div>
+        <div class="stat-value">3</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Requests</div>
+        <div class="stat-value">2</div>
+      </div>
+    </div>
+
+    <div class="tables-grid">
+      <div class="table-card">
+        <div class="table-header red"><span>👥</span><span class="table-title">Registered Staff</span></div>
+        <table>
+          <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+          <tbody id="users-tbody"><tr class="empty-row"><td colspan="3">No users yet.</td></tr></tbody>
+        </table>
+      </div>
+      <div class="table-card">
+        <div class="table-header teal"><span>🎫</span><span class="table-title">Current Session (JWT)</span></div>
+        <div class="token-panel" id="token-display">
+          <strong>JWT Payload — decoded</strong>Not logged in.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const JWT_SECRET = 'f7K#mP2$xQnL9vRt4wYc8jBe6hZd3sAu'
+function getUsers() { return JSON.parse(localStorage.getItem('bakery_users') || '[]') }
+function saveUsers(u) { localStorage.setItem('bakery_users', JSON.stringify(u)) }
+function findUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null }
+
+function b64url(str) {
+  return btoa(unescape(encodeURIComponent(str)))
+    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
+}
+function makeJWT(payload) {
+  const header = b64url(JSON.stringify({ alg:'HS256', typ:'JWT' }))
+  const body   = b64url(JSON.stringify({ ...payload, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+(8*60*60) }))
+  const sig    = b64url(JWT_SECRET+'.'+body)
+  return `${header}.${body}.${sig}`
+}
+function decodeJWT(token) {
+  try {
+    const parts = token.split('.')
+    if (parts.length !== 3) return null
+    return JSON.parse(decodeURIComponent(escape(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')))))
+  } catch { return null }
+}
+function isTokenValid(token) { const p = decodeJWT(token); return p && p.exp > Math.floor(Date.now()/1000) }
+function showMsg(el, msg) { el.textContent = msg; el.style.display = 'block' }
+
+window.addEventListener('DOMContentLoaded', () => {
+  const token = localStorage.getItem('bakery_jwt')
+  if (!token || !isTokenValid(token)) {
+    window.location.href = 'login.html'
+    return
+  }
+
+  const payload = decodeJWT(token)
+
+  document.getElementById('dash-welcome').textContent = `Welcome back, ${payload.name.split(' ')[0]}!`
+  document.getElementById('dash-date').textContent =
+    new Date().toLocaleDateString('en-PH', { weekday:'long', month:'long', day:'numeric', year:'numeric' })
+
+  const users = getUsers()
+  document.getElementById('stat-users').textContent = users.length
+
+  const tbody = document.getElementById('users-tbody')
+  tbody.innerHTML = users.length === 0
+    ? '<tr class="empty-row"><td colspan="3">No users registered yet.</td></tr>'
+    : users.map(u => `
+        <tr>
+          <td style="font-weight:700;">${u.fullName}</td>
+          <td style="font-size:12px;color:#777;">${u.email}</td>
+          <td><span class="badge-pill" style="background:${u.role==='manager'?'#7B1111':'#3b82f6'};">${u.role}</span></td>
+        </tr>`).join('')
+
+  document.getElementById('token-display').innerHTML = `
+    <strong>JWT Payload — decoded from localStorage</strong>
+    👤 &nbsp;Name:&nbsp;&nbsp;&nbsp; <b>${payload.name}</b><br>
+    📧 &nbsp;Email:&nbsp;&nbsp;&nbsp; <b>${payload.email}</b><br>
+    🎭 &nbsp;Role:&nbsp;&nbsp;&nbsp;&nbsp; <b>${payload.role}</b><br>
+    🆔 &nbsp;User ID:&nbsp;&nbsp; <b>${payload.userId}</b><br>
+    ⏰ &nbsp;Issued:&nbsp;&nbsp;&nbsp; <b>${new Date(payload.iat * 1000).toLocaleTimeString()}</b><br>
+    ⌛ &nbsp;Expires:&nbsp;&nbsp; <b>${new Date(payload.exp * 1000).toLocaleTimeString()}</b>
+  `
+})
+
+function handleLogout() {
+  localStorage.removeItem('bakery_jwt')
+  window.location.href = 'login.html'
+}
+</script>
+</body>
+</html>
