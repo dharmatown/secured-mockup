@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fred's Bakery – Register</title>
 <link rel="stylesheet" href="shared.css">
-<script src="bcrypt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 </head>
 <body>
 
@@ -19,8 +19,7 @@
 </div>
 
 <div class="split">
-  <div class="split-left"><img src="logo-big.png" style="width:100%;height:100%;object-fit:cover;opacity:0.3;"
-       onerror="this.outerHTML='<div class=\'watermark\'>🥐</div>'"></div>
+  <div class="split-left"><div class="watermark">🥐</div></div>
   <div class="split-right">
     <div class="page-title">Register</div>
     <div class="form-hint">Create your staff account to continue</div>
@@ -72,24 +71,6 @@ function getUsers() { return JSON.parse(localStorage.getItem('bakery_users') || 
 function saveUsers(u) { localStorage.setItem('bakery_users', JSON.stringify(u)) }
 function findUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null }
 
-function b64url(str) {
-  return btoa(unescape(encodeURIComponent(str)))
-    .replace(/\+/g,'-').replace(/\//g,'_').replace(/=/g,'')
-}
-function makeJWT(payload) {
-  const header = b64url(JSON.stringify({ alg:'HS256', typ:'JWT' }))
-  const body   = b64url(JSON.stringify({ ...payload, iat: Math.floor(Date.now()/1000), exp: Math.floor(Date.now()/1000)+(8*60*60) }))
-  const sig    = b64url(JWT_SECRET+'.'+body)
-  return `${header}.${body}.${sig}`
-}
-function decodeJWT(token) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    return JSON.parse(decodeURIComponent(escape(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')))))
-  } catch { return null }
-}
-function isTokenValid(token) { const p = decodeJWT(token); return p && p.exp > Math.floor(Date.now()/1000) }
 function showMsg(el, msg) { el.textContent = msg; el.style.display = 'block' }
 
 let selectedRole = 'manager'
@@ -117,17 +98,18 @@ function handleRegister() {
   if (password.length < 8) return showMsg(errBox, 'Password must be at least 8 characters.')
   if (password !== confirm) return showMsg(errBox, 'Passwords do not match.')
   if (findUserByEmail(email)) return showMsg(errBox, 'An account with that email already exists.')
-  if (typeof dcodeIO === 'undefined') return showMsg(errBox, 'bcrypt failed to load. Refresh the page.')
+  
+  // Library check updated for CDN
+  if (typeof bcrypt === 'undefined') return showMsg(errBox, 'Bcrypt failed to load. Check your internet connection.')
 
   btn.disabled = true
   btn.textContent = 'Hashing with bcrypt…'
 
   try {
-    // 1️⃣ Generate salt explicitly then hash password
-    const salt = dcodeIO.bcrypt.genSaltSync(10)
-    const passwordHash = dcodeIO.bcrypt.hashSync(password, salt)
+    // Updated hashing logic
+    const salt = bcrypt.genSaltSync(10)
+    const passwordHash = bcrypt.hashSync(password, salt)
 
-    // 2️⃣ Save user to localStorage
     const users = getUsers()
     const newUser = {
       id: crypto.randomUUID(),
