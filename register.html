@@ -66,12 +66,23 @@
 </div>
 
 <script>
-const JWT_SECRET = 'f7K#mP2$xQnL9vRt4wYc8jBe6hZd3sAu'
-function getUsers() { return JSON.parse(localStorage.getItem('bakery_users') || '[]') }
-function saveUsers(u) { localStorage.setItem('bakery_users', JSON.stringify(u)) }
-function findUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null }
+// Logic to handle local storage
+function getUsers() { 
+  return JSON.parse(localStorage.getItem('bakery_users') || '[]') 
+}
 
-function showMsg(el, msg) { el.textContent = msg; el.style.display = 'block' }
+function saveUsers(u) { 
+  localStorage.setItem('bakery_users', JSON.stringify(u)) 
+}
+
+function findUserByEmail(email) { 
+  return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null 
+}
+
+function showMsg(el, msg) { 
+  el.textContent = msg; 
+  el.style.display = 'block' 
+}
 
 let selectedRole = 'manager'
 
@@ -94,19 +105,22 @@ function handleRegister() {
   errBox.style.display = 'none'
   sucBox.style.display = 'none'
 
+  // Input validation
   if (!firstName || !lastName || !email || !password) return showMsg(errBox, 'Please fill in all fields.')
   if (password.length < 8) return showMsg(errBox, 'Password must be at least 8 characters.')
   if (password !== confirm) return showMsg(errBox, 'Passwords do not match.')
   if (findUserByEmail(email)) return showMsg(errBox, 'An account with that email already exists.')
   
-  // Library check updated for CDN
-  if (typeof bcrypt === 'undefined') return showMsg(errBox, 'Bcrypt failed to load. Check your internet connection.')
+  // Library check
+  if (typeof bcrypt === 'undefined') {
+    return showMsg(errBox, 'Bcrypt library failed to load. Check your internet connection.')
+  }
 
   btn.disabled = true
-  btn.textContent = 'Hashing with bcrypt…'
+  btn.textContent = 'Hashing password...'
 
   try {
-    // Updated hashing logic
+    // Generate salt and hash using the global bcrypt object
     const salt = bcrypt.genSaltSync(10)
     const passwordHash = bcrypt.hashSync(password, salt)
 
@@ -114,15 +128,22 @@ function handleRegister() {
     const newUser = {
       id: crypto.randomUUID(),
       fullName: `${firstName} ${lastName}`,
-      email, role: selectedRole,
-      passwordHash,
+      email: email,
+      role: selectedRole,
+      passwordHash: passwordHash,
       createdAt: new Date().toISOString(),
     }
+    
     users.push(newUser)
     saveUsers(users)
 
-    showMsg(sucBox, `✅ Account created for ${newUser.fullName}! Redirecting to login…`)
-    setTimeout(() => { window.location.href = 'login.html' }, 1600)
+    showMsg(sucBox, `✅ Success! Account created for ${firstName}. Redirecting...`)
+    
+    // Smooth transition to login
+    setTimeout(() => { 
+      window.location.href = 'login.html' 
+    }, 1600)
+
   } catch (err) {
     showMsg(errBox, 'Registration failed: ' + err.message)
   } finally {
