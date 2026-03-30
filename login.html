@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fred's Bakery – Login</title>
 <link rel="stylesheet" href="shared.css">
-<script src="bcrypt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 </head>
 <body>
 
@@ -19,8 +19,7 @@
 </div>
 
 <div class="split">
-  <div class="split-left"><img src="logo-big.png" style="width:100%;height:100%;object-fit:cover;opacity:0.3;"
-       onerror="this.outerHTML='<div class=\'watermark\'>🥐</div>'"></div>
+  <div class="split-left"><div class="watermark">🥐</div></div>
   <div class="split-right">
     <div class="page-title">Login</div>
     <div class="form-hint">Please login to continue</div>
@@ -36,7 +35,6 @@
 
     <button class="btn-primary" id="login-btn" onclick="handleLogin()">Log In</button>
 
-    <div class="form-note">User accounts are provided</div>
     <div class="security-badge">
       🎫 A <strong>&nbsp;JWT token&nbsp;</strong> is issued upon successful login
     </div>
@@ -49,7 +47,6 @@
 <script>
 const JWT_SECRET = 'f7K#mP2$xQnL9vRt4wYc8jBe6hZd3sAu'
 function getUsers() { return JSON.parse(localStorage.getItem('bakery_users') || '[]') }
-function saveUsers(u) { localStorage.setItem('bakery_users', JSON.stringify(u)) }
 function findUserByEmail(email) { return getUsers().find(u => u.email.toLowerCase() === email.toLowerCase()) || null }
 
 function b64url(str) {
@@ -62,14 +59,6 @@ function makeJWT(payload) {
   const sig    = b64url(JWT_SECRET+'.'+body)
   return `${header}.${body}.${sig}`
 }
-function decodeJWT(token) {
-  try {
-    const parts = token.split('.')
-    if (parts.length !== 3) return null
-    return JSON.parse(decodeURIComponent(escape(atob(parts[1].replace(/-/g,'+').replace(/_/g,'/')))))
-  } catch { return null }
-}
-function isTokenValid(token) { const p = decodeJWT(token); return p && p.exp > Math.floor(Date.now()/1000) }
 function showMsg(el, msg) { el.textContent = msg; el.style.display = 'block' }
 
 function handleLogin() {
@@ -81,27 +70,23 @@ function handleLogin() {
   errBox.style.display = 'none'
 
   if (!email || !password) return showMsg(errBox, 'Please enter your email and password.')
-  if (typeof dcodeIO === 'undefined') return showMsg(errBox, 'bcrypt failed to load. Refresh the page.')
+  
+  // Library check updated
+  if (typeof bcrypt === 'undefined') return showMsg(errBox, 'Bcrypt failed to load. Check your internet connection.')
 
   btn.disabled = true
   btn.textContent = 'Verifying with bcrypt…'
 
   try {
-    // 1️⃣ Look up user in localStorage
     const user = findUserByEmail(email)
     if (!user) throw new Error('No account found with that email.')
 
-    // 2️⃣ Compare password against stored bcrypt hash
-    const match = dcodeIO.bcrypt.compareSync(password, user.passwordHash)
+    // Updated comparison logic
+    const match = bcrypt.compareSync(password, user.passwordHash)
     if (!match) throw new Error('Incorrect password.')
 
-    // 3️⃣ Issue JWT token (built manually — no library needed)
     const token = makeJWT({ userId: user.id, email: user.email, role: user.role, name: user.fullName })
-
-    // 4️⃣ Store JWT in localStorage
     localStorage.setItem('bakery_jwt', token)
-
-    // 5️⃣ Redirect to dashboard
     window.location.href = 'dashboard.html'
   } catch (err) {
     showMsg(errBox, err.message || 'Login failed.')
