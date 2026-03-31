@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fred's Bakery – Login</title>
 <link rel="stylesheet" href="shared.css">
-<script src="bcrypt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 </head>
 <body>
 
@@ -89,10 +89,11 @@ function handleLogin() {
 
     if (!email || !password) return showMsg(errBox, 'Please enter your email and password.')
 
-    // Ensure bcrypt is loaded from the CDN
-    if (typeof bcrypt === 'undefined') {
-        return showMsg(errBox, 'Security library (bcrypt) failed to load. Please check your internet connection.')
-    }
+    // Library check — handle both bcrypt and dcodeIO.bcrypt namespaces
+    const bcryptLib = (typeof bcrypt !== 'undefined' && bcrypt.compareSync) ? bcrypt
+                    : (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
+                    : null
+    if (!bcryptLib) return showMsg(errBox, 'Bcrypt library failed to load. Refresh the page.')
 
     btn.disabled = true
     btn.textContent = 'Verifying...'
@@ -102,7 +103,7 @@ function handleLogin() {
         if (!user) throw new Error('No account found with that email.')
 
         // Verify the typed password against the stored hash
-        const match = bcrypt.compareSync(password, user.passwordHash)
+        const match = bcryptLib.compareSync(password, user.passwordHash)
         if (!match) throw new Error('Incorrect password.')
 
         // Create the session token
