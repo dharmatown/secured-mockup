@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fred's Bakery – Register</title>
 <link rel="stylesheet" href="shared.css">
-<script src="bcrypt.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bcryptjs@2.4.3/dist/bcrypt.min.js"></script>
 </head>
 <body>
 
@@ -111,18 +111,19 @@ function handleRegister() {
   if (password !== confirm) return showMsg(errBox, 'Passwords do not match.')
   if (findUserByEmail(email)) return showMsg(errBox, 'An account with that email already exists.')
   
-  // Library check
-  if (typeof bcrypt === 'undefined') {
-    return showMsg(errBox, 'Bcrypt library failed to load. Check your internet connection.')
-  }
+  // Library check — handle both bcrypt and dcodeIO.bcrypt namespaces
+  const bcryptLib = (typeof bcrypt !== 'undefined' && bcrypt.hashSync) ? bcrypt
+                  : (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
+                  : null
+  if (!bcryptLib) return showMsg(errBox, 'Bcrypt library failed to load. Refresh the page.')
 
   btn.disabled = true
   btn.textContent = 'Hashing password...'
 
   try {
     // Generate salt and hash using the global bcrypt object
-    const salt = bcrypt.genSaltSync(10)
-    const passwordHash = bcrypt.hashSync(password, salt)
+    const salt = bcryptLib.genSaltSync(10)
+    const passwordHash = bcryptLib.hashSync(password, salt)
 
     const users = getUsers()
     const newUser = {
